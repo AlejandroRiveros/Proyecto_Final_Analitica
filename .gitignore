@@ -1,0 +1,7 @@
+# Archivo demasiado grande para GitHub (>100 MB) — compartir por Drive/email
+Base_Videos_Final_202601.csv
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
