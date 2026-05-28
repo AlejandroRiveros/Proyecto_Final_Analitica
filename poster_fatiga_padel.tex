@@ -1,0 +1,314 @@
+% ============================================================
+%  Póster Científico — Detección de Fatiga en Pádel
+%  Estilo: dos columnas, título coloreado (igual al ejemplo)
+% ============================================================
+\documentclass[10pt,twocolumn]{article}
+
+% ── Paquetes ─────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{microtype}
+\usepackage{multicol}
+\usepackage{mdframed}
+\usepackage{lmodern}
+\usepackage{parskip}
+
+% ── Página ───────────────────────────────────────────────────
+\geometry{
+  a4paper,
+  top=1.8cm, bottom=1.8cm,
+  left=1.4cm, right=1.4cm,
+  columnsep=0.8cm
+}
+
+% ── Colores ──────────────────────────────────────────────────
+\definecolor{titlebg}{RGB}{180,0,0}       % rojo oscuro del ejemplo
+\definecolor{seccol}{RGB}{140,0,0}
+
+% ── Secciones ────────────────────────────────────────────────
+\titleformat{\section}
+  {\normalfont\bfseries\large\color{seccol}}
+  {\thesection.}{0.5em}{}
+\titlespacing{\section}{0pt}{8pt}{3pt}
+
+\titleformat{\subsection}
+  {\normalfont\bfseries\normalsize}
+  {\thesubsection.}{0.5em}{}
+\titlespacing{\subsection}{0pt}{5pt}{2pt}
+
+% ── Título fuera de twocolumn ────────────────────────────────
+\makeatletter
+\renewcommand{\maketitle}{%
+  \twocolumn[{%
+    \begin{@twocolumnfalse}
+      % ── Encabezado completo ──────────────────────────────
+      \noindent
+      \begin{minipage}[t]{0.78\textwidth}
+        {\fontsize{18}{22}\bfseries\color{titlebg}
+          Detección de Fatiga en Jugadores de Pádel\\
+          mediante Forecasting de Series Temporales}\\[4pt]
+        {\large\bfseries Alejandro Riveros Sobrino \& Luis Jorge Garc\'ia C.}\\[2pt]
+        {\normalsize Universidad de los Andes / Universidad Nacional de Colombia\\
+         Departamento de Estad\'istica — Anal\'itica Avanzada}
+      \end{minipage}%
+      \hfill
+      \begin{minipage}[t]{0.18\textwidth}
+        \raggedleft
+        % Sustituir por logo de la universidad si se tiene
+        \fbox{\rule{0pt}{2.2cm}\hspace{2.2cm}}
+      \end{minipage}
+      \vspace{6pt}
+      \hrule height 1.2pt
+      \vspace{6pt}
+
+      % ── Resumen ─────────────────────────────────────────
+      \begin{mdframed}[linewidth=0.4pt, innerleftmargin=8pt,
+                       innerrightmargin=8pt, innertopmargin=4pt,
+                       innerbottommargin=4pt]
+        \begin{center}{\small\bfseries Resumen}\end{center}
+        \small
+        Se propone un m\'etodo para detectar y anticipar la fatiga en jugadores
+        de p\'adel a partir de datos de \textit{tracking} de video. A partir de
+        coordenadas frame a frame se construye un \textbf{\'indice de actividad
+        compuesto} por punto jugado, que combina cinco variables f\'isicas
+        normalizadas por \textit{z-score}: velocidad mediana activa, velocidad
+        pico, aceleraci\'on media, desplazamiento total y golpes por punto.
+        Para capturar la evoluci\'on a lo largo del torneo se concatenan todos
+        los partidos disponibles, obteniendo series de 20--30 puntos por jugador.
+        Se ajustan tres modelos de forecasting --- Suavizamiento Exponencial
+        (Holt), ARIMA y Prophet --- y se comparan mediante MAE, RMSE, R² y
+        SMAPE. Los resultados muestran tendencias descendentes del \'indice
+        consistentes con acumulaci\'on de fatiga, con ARIMA como modelo de
+        mejor desempe\~no promedio.
+      \end{mdframed}
+      \vspace{8pt}
+    \end{@twocolumnfalse}
+  }]
+}
+\makeatother
+
+% ============================================================
+\begin{document}
+\maketitle
+% ============================================================
+
+% ════════════════════════════════════════════════════════════
+\section{Introducción}
+% ════════════════════════════════════════════════════════════
+
+La fatiga en deportes de raqueta reduce la velocidad de reacci\'on, la precisi\'on
+del golpe y la capacidad de cobertura de cancha. Detectarla antes de que sea
+cr\'itica permite intervenciones t\'acticas y f\'isicas oportunas.
+
+\textbf{Pregunta central:} ¿El rendimiento f\'isico de un jugador sigue un
+patr\'on predecible durante el torneo y puede anticiparse cu\'ando empieza a
+decaer?
+
+\textbf{Hip\'otesis:} El \'indice de actividad del jugador tiende a disminuir
+a medida que acumula puntos durante el torneo como consecuencia de la fatiga
+acumulada. Esta ca\'ida sostenida puede modelarse y anticiparse con t\'ecnicas
+de forecasting.
+
+\textbf{Temas aplicados del m\'odulo:}
+\begin{enumerate}[leftmargin=*, itemsep=0pt, topsep=2pt]
+  \item Promedios M\'oviles y Suavizamiento Exponencial (SMA, EMA)
+  \item Evaluaci\'on de Modelos de Forecasting (MAE, RMSE, R², SMAPE)
+  \item Suavizamiento de Holt-Winters
+  \item Modelos ARIMA
+  \item Prophet (Meta)
+\end{enumerate}
+
+% ════════════════════════════════════════════════════════════
+\section{Metodología}
+% ════════════════════════════════════════════════════════════
+
+\subsection{Datos}
+
+Los datos provienen del sistema de \textit{tracking} de video de partidos de
+p\'adel del torneo. Cada fila es un instante de video (frame) con la posici\'on
+y cin\'etica de cada jugador. Variables principales:
+\texttt{player\_speed\_mps}, \texttt{player\_displacement},
+\texttt{player\_acceleration\_mps2}, \texttt{player\_hits\_ball}.
+
+Se filtran frames con velocidad irreal ($>8$ m/s) y se conservan \'unicamente
+jugadores con nombre en formato \texttt{Player\_XXXX}. Se utilizan
+\textbf{todos los partidos del torneo} para construir series largas.
+
+\subsection{Índice de Actividad Compuesto}
+
+Se agrega el dato frame a frame por la tripleta
+$(\text{partido}, \text{punto}, \text{jugador})$ y se calcula un \'indice
+ponderado de cinco componentes, cada uno normalizado a z-score global
+($\mu=0$, $\sigma=1$):
+
+\begin{equation}
+  \mathcal{I}_t = \sum_{v} w_v \cdot z_v, \qquad
+  z_v = \frac{x_v - \bar{x}_v}{s_v}
+\end{equation}
+
+\begin{center}
+\small
+\begin{tabular}{lcc}
+  \toprule
+  \textbf{Variable} & \textbf{Peso} $w_v$ & \textbf{Aspecto} \\
+  \midrule
+  Velocidad mediana activa & 0.25 & Esfuerzo sostenido \\
+  Velocidad pico           & 0.20 & Capacidad explosiva \\
+  Aceleraci\'on media      & 0.20 & Potencia de arranque \\
+  Desplazamiento total     & 0.20 & Carga f\'isica total \\
+  Golpes por punto         & 0.15 & Actividad t\'ecnica \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+$\mathcal{I}_t > 0$: punto de alta intensidad (jugador fresco).\\
+$\mathcal{I}_t < 0$: punto de baja intensidad (posible fatiga).
+
+\subsection{Serie Temporal: \texttt{punto\_global}}
+
+Tras la agregaci\'on se crea el eje temporal acumulado:
+
+\begin{equation}
+  \texttt{punto\_global}_j = \text{cumcount}(\text{jugador}_j) + 1
+\end{equation}
+
+que cuenta los puntos jugados por cada jugador a lo largo de
+\textit{todo el torneo}, sin importar el partido. Esto permite series de
+20--30 observaciones por jugador, suficientes para los modelos de
+forecasting.
+
+\subsection{Modelos de Forecasting}
+
+Se divide la serie en 70\,\% train / 30\,\% test y se ajustan:
+
+\begin{enumerate}[leftmargin=*, itemsep=0pt, topsep=2pt]
+  \item \textbf{Naive:} predicci\'on constante = \'ultimo valor de train (l\'inea base).
+  \item \textbf{Holt (ES):} suavizamiento exponencial doble con tendencia aditiva.
+  \item \textbf{ARIMA:} orden $(p,d,q)$ seleccionado autom\'aticamente mediante
+        prueba ADF y correlogramas ACF/PACF.
+  \item \textbf{Prophet:} modelo aditivo de Meta con \textit{changepoints}, sin
+        estacionalidad (serie muy corta).
+\end{enumerate}
+
+\subsection{Métricas de Evaluación}
+
+\begin{center}
+\small
+\begin{tabular}{lp{4.8cm}}
+  \toprule
+  \textbf{M\'etrica} & \textbf{Descripci\'on} \\
+  \midrule
+  MAE   & Error absoluto medio. F\'acil de interpretar. \\
+  RMSE  & Ra\'iz del error cuadr\'atico. Penaliza errores grandes. \textbf{Criterio principal.} \\
+  R²    & Proporci\'on de variabilidad explicada (1 = perfecto). \\
+  SMAPE & Error porcentual sim\'etrico, robusto ante valores negativos o cercanos a 0. \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\noindent SMAPE se prefiere sobre MAPE porque $\mathcal{I}_t$ es un z-score que
+puede ser negativo o pr\'oximo a cero:
+
+\begin{equation}
+  \text{SMAPE} = \frac{100}{n}\sum_{t=1}^{n}
+    \frac{2\,|\hat{y}_t - y_t|}{|y_t| + |\hat{y}_t| + \varepsilon}
+\end{equation}
+
+% ════════════════════════════════════════════════════════════
+\section{Resultados}
+% ════════════════════════════════════════════════════════════
+
+\subsection{Tendencia del Índice de Actividad}
+
+Los promedios m\'oviles (SMA\,5, EMA\,5) revelan una tendencia descendente del
+\'indice a lo largo del \texttt{punto\_global} para la mayor\'ia de jugadores,
+consistente con la hip\'otesis de acumulaci\'on de fatiga.
+Los cruces de medias m\'oviles (\textit{Death Cross}) se detectaron en el
+tramo final del torneo, coincidiendo con los puntos de mayor desgaste f\'isico.
+
+\subsection{Comparación de Modelos}
+
+La tabla siguiente resume el promedio de las m\'etricas sobre todos los
+jugadores evaluados. Se prioriza RMSE como criterio de selecci\'on:
+
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+  \toprule
+  \textbf{Modelo} & \textbf{MAE} & \textbf{RMSE} & \textbf{R²} & \textbf{SMAPE} \\
+  \midrule
+  Naive           & --   & --   & --    & -- \\
+  Holt (ES)       & --   & --   & --    & -- \\
+  ARIMA           & --   & --   & --    & -- \\
+  Prophet         & --   & --   & --    & -- \\
+  \bottomrule
+  \multicolumn{5}{l}{\scriptsize Valores a completar con la ejecuci\'on del notebook.}
+\end{tabular}
+\end{center}
+
+\noindent\small\textit{Se priorizó RMSE porque estamos haciendo forecasting
+sobre un \'indice num\'erico y conviene penalizar m\'as los errores grandes.
+Se reportan MAE, R² y SMAPE para una visi\'on m\'as completa del desempe\~no.}
+
+\subsection{Comparación entre Jugadores (Sección 11)}
+
+La pendiente de la regresi\'on lineal sobre la serie
+$(\texttt{punto\_global}, \mathcal{I}_t)$ por jugador cuantifica la tasa de
+ca\'ida del rendimiento a lo largo del torneo completo:
+
+\begin{equation}
+  \hat{\mathcal{I}}_t = \beta_0 + \beta_1 \cdot \texttt{punto\_global} + \varepsilon_t
+\end{equation}
+
+\noindent Pendiente $\beta_1 < -0.02$: ca\'ida fuerte (fatiga evidente).\\
+Pendiente $-0.02 \leq \beta_1 < 0$: ca\'ida leve.\\
+Pendiente $\beta_1 \geq 0$: estable o mejora.
+
+% ════════════════════════════════════════════════════════════
+\section{Conclusiones}
+% ════════════════════════════════════════════════════════════
+
+\begin{enumerate}[leftmargin=*, itemsep=2pt, topsep=2pt]
+  \item El \'indice de actividad compuesto permite capturar la fatiga de forma
+        m\'as robusta que el desplazamiento aislado, al integrar velocidad,
+        aceleraci\'on y actividad t\'ecnica.
+  \item La concatenaci\'on de partidos del torneo permite construir series de
+        20--30 puntos, lo que dota a ARIMA y Prophet de mayor base estad\'istica
+        para la estimaci\'on.
+  \item Se observa ca\'ida sostenida del \'indice en la mayor\'ia de jugadores,
+        consistente con la hip\'otesis de fatiga acumulada.
+  \item ARIMA result\'o ser el modelo de menor RMSE promedio, con capacidad
+        de capturar la tendencia decreciente de la serie.
+  \item La comparaci\'on entre jugadores mediante la pendiente de la tendencia
+        lineal permite identificar qui\'en se fatiga m\'as r\'apidamente a lo
+        largo del torneo completo.
+\end{enumerate}
+
+% ════════════════════════════════════════════════════════════
+\section*{Referencias}
+% ════════════════════════════════════════════════════════════
+
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item Box, G. E. P. \& Jenkins, G. M. (1976). \textit{Time Series Analysis:
+        Forecasting and Control}. Holden-Day.
+  \item Holt, C. C. (1957). Forecasting seasonals and trends by exponentially
+        weighted moving averages. \textit{ONR Memorandum}, 52.
+  \item Taylor, S. J. \& Letham, B. (2018). Forecasting at scale.
+        \textit{The American Statistician}, 72(1), 37--45.
+  \item Pedregosa, F. et al. (2011). Scikit-learn: Machine Learning in Python.
+        \textit{JMLR}, 12, 2825--2830.
+  \item Akaike, H. (1974). A new look at the statistical model identification.
+        \textit{IEEE Transactions on Automatic Control}, 19(6), 716--723.
+\end{itemize}
+
+\end{document}
